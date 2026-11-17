@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { subscribe } from '../lib/realtime'
 import { Plus, Trash2, Pencil, HandCoins, Undo2 } from 'lucide-react'
 import { api } from '../lib/api'
 import Layout from '../components/Layout'
@@ -61,9 +62,11 @@ export default function Transactions() {
 
   useEffect(() => {
     load()
+    const unsubscribe = subscribe('*', load)
     // The form's dropdowns; the page still works (type the vehicle) if these fail.
     api.get('/vehicles').then(setVehicles).catch((failure) => console.error('Unable to load vehicles:', failure.message))
     api.get('/admin/locations').then((rows) => setLocations(rows.filter((row) => row.is_active))).catch((failure) => console.error('Unable to load locations:', failure.message))
+    return unsubscribe
   }, [])
 
   // Put an updated transaction back into the table without reloading everything.
