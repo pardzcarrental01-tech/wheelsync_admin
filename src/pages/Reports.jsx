@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { subscribe } from '../lib/realtime'
 import { Download } from 'lucide-react'
 import { api } from '../lib/api'
 import Layout from '../components/Layout'
@@ -37,7 +38,7 @@ export default function Reports() {
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load(); return subscribe('*', load) }, [])
 
   function exportCsv(branded = false) {
     const header = ['Booking ID', 'Customer', 'Vehicle', 'Plate', 'Start date', 'Pickup time', 'End date', 'Return time', 'Service', 'Status', 'Late return']
