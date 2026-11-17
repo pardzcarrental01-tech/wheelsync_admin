@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { subscribe } from '../lib/realtime'
 import { Plus, Trash2, Save } from 'lucide-react'
 import { api } from '../lib/api'
 import Layout from '../components/Layout'
@@ -29,7 +30,7 @@ export default function Locations() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load(); return subscribe('*', load) }, [])
 
   async function addLocation(event) {
     event.preventDefault()
