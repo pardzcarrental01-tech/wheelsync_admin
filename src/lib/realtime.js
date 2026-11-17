@@ -1,64 +1,48 @@
-// Live "something changed" pings from the FastAPI WebSocket.
-// The server only says WHICH table changed; callers re-fetch through the normal REST endpoints.
-import { getToken, wsUrl } from './api'
+// Reloads each open page automatically, without a click.
+// Pauses while someone is typing, has a dialog open, or just clicked or scrolled,
+// then loads the held update as soon as they stop. Same API as before.
+const REFRESH_MS = 3000   // reload at most this often while idle
+const CHECK_MS = 1000     // how often to check whether the page is idle
+const IDLE_MS = 3000      // quiet time after the last click, key press, or scroll
 
 const listeners = new Set()
-let socket = null
-let retryTimer = null
-let pingTimer = null
-let attempts = 0
+let lastRefresh = 0
+let lastActivity = 0
+let pending = false
 
-function open() {
-  const token = getToken()
-  if (socket || !token || listeners.size === 0) return
-  const ws = new WebSocket(`${wsUrl}/ws?token=${encodeURIComponent(token)}`)
-  socket = ws
+function isBusy() {
+  const el = document.activeElement
+  const typing = !!el && (['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName) || el.isContentEditable)
+  const dialog = !!document.querySelector('[aria-modal="true"]')
+    || [...document.querySelectorAll('.fixed.inset-0')].some((node) => node.children.length > 0 && node.offsetParent !== null)
+  return typing || dialog || Date.now() - lastActivity < IDLE_MS
+}
 
-  ws.onopen = () => {
-    const reconnected = attempts > 0
-    attempts = 0
-    pingTimer = setInterval(() => { try { ws.send('ping') } catch { /* closing */ } }, 25000)
-    if (reconnected) listeners.forEach((listener) => listener.callback({ table: '*' }))
-  }
-  ws.onmessage = (message) => {
-    let event
-    try { event = JSON.parse(message.data) } catch { return }
-    listeners.forEach((listener) => {
-      if (listener.tables.includes(event.table)) listener.callback(event)
+function check() {
+  if (document.visibilityState !== 'visible') return
+  if (isBusy()) { pending = true; return }
+  if (pending || Date.now() - lastRefresh >= REFRESH_MS) {
+    pending = false
+    lastRefresh = Date.now()
+    listeners.forEach((callback) => {
+      try { callback({ table: '*' }) } catch { /* ignore a failing page */ }
     })
   }
-  ws.onclose = (event) => {
-    clearInterval(pingTimer)
-    if (socket === ws) socket = null
-    if (event.code === 4401 || event.code === 4403) return
-    if (listeners.size > 0 && getToken()) {
-      attempts += 1
-      retryTimer = setTimeout(open, Math.min(30000, 1000 * 2 ** Math.min(attempts, 5)))
-    }
-  }
-  ws.onerror = () => ws.close()
 }
 
-export function subscribe(tables, callback) {
-  const listener = { tables: Array.isArray(tables) ? tables : [tables], callback }
-  listeners.add(listener)
-  open()
-  return () => {
-    listeners.delete(listener)
-    if (listeners.size === 0) resetRealtime()
-  }
+;['pointerdown', 'keydown', 'input', 'scroll', 'touchstart'].forEach((type) =>
+  document.addEventListener(type, () => { lastActivity = Date.now() }, { capture: true, passive: true }))
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') { pending = true; check() }
+})
+
+setInterval(check, CHECK_MS)
+
+export function subscribe(_tables, callback) {
+  listeners.add(callback)
+  return () => { listeners.delete(callback) }
 }
 
-/** Call after sign-in / sign-out so the socket always uses the current token. */
-export function resetRealtime() {
-  clearTimeout(retryTimer)
-  clearInterval(pingTimer)
-  attempts = 0
-  if (socket) {
-    const old = socket
-    socket = null
-    old.onclose = null
-    old.close()
-  }
-  if (listeners.size > 0) open()
-}
+// Kept so AuthContext.jsx works without changes.
+export function resetRealtime() {}
