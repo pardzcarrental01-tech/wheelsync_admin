@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { subscribe } from '../lib/realtime'
 import { Pencil, Plus } from 'lucide-react'
 import { api } from '../lib/api'
 import Layout from '../components/Layout'
@@ -27,7 +28,7 @@ export default function Staff() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load(); return subscribe('*', load) }, [])
 
   function openForm(member = null) {
     setEditing(member)
