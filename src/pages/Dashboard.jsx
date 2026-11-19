@@ -21,8 +21,8 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
 
-  async function load() {
-    setLoading(true)
+  async function load({ silent = false } = {}) {
+    if (!silent) setLoading(true)
     setStatsError('')
     try {
       const data = await api.get('/admin/dashboard', { year: new Date().getFullYear() })
@@ -43,7 +43,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     load()
-    return subscribe('bookings', load)
+    return subscribe('bookings', () => load({ silent: true }))
   }, [])
 
   const visibleRecent = recent.filter((b) => matchesSearch(search, b.profiles?.full_name, b.vehicles?.make, b.vehicles?.model, b.vehicles?.plate_number, b.start_date, b.end_date, b.status))

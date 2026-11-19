@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api } from '../lib/api'
+import { subscribe } from '../lib/realtime'
 import Layout from '../components/Layout'
 import { PageHeader, FilterBar } from '../components/PageParts'
 import SearchBar from '../components/SearchBar'
@@ -14,12 +15,19 @@ export default function AuditLog() {
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [refreshKey, setRefreshKey] = useState(0)
+  const lastSearch = useRef(null)
+
+  // Live updates: bump the key so the log re-fetches without showing the loading state.
+  useEffect(() => subscribe('*', () => setRefreshKey((key) => key + 1)), [])
 
   useEffect(() => {
     let active = true
+    const silent = lastSearch.current === search
+    lastSearch.current = search
     // Search on the server (debounced) so older entries are found too, not only the latest page.
     const timer = setTimeout(async () => {
-      setLoading(true)
+      if (!silent) setLoading(true)
       setError('')
       try {
         const rows = await api.get('/admin/audit-logs', { q: search.trim(), limit: 500 })
@@ -31,7 +39,7 @@ export default function AuditLog() {
       }
     }, search ? 300 : 0)
     return () => { active = false; clearTimeout(timer) }
-  }, [search])
+  }, [search, refreshKey])
 
   return (
     <Layout>

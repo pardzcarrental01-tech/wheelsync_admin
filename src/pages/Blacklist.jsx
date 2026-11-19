@@ -47,8 +47,8 @@ export default function Blacklist() {
   const [recordsPage, setRecordsPage] = useState(1) // NEW: page of the blacklist records table
   const [blockedPage, setBlockedPage] = useState(1) // NEW: page of the blocked accounts table
 
-  async function load() {
-    setLoading(true)
+  async function load({ silent = false } = {}) {
+    if (!silent) setLoading(true)
     try {
       const [blocked, list] = await Promise.all([
         api.get('/admin/customers', { blacklisted: true }),
@@ -62,7 +62,7 @@ export default function Blacklist() {
     setLoading(false)
   }
 
-  useEffect(() => { load(); return subscribe('*', load) }, [])
+  useEffect(() => { load(); return subscribe('*', () => load({ silent: true })) }, [])
 
   // NEW: go back to page 1 whenever the search or reason filter changes
   useEffect(() => {

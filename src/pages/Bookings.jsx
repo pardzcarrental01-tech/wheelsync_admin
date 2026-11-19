@@ -39,8 +39,8 @@ export default function Bookings() {
   const [sharedIds, setSharedIds] = useState({}) // customer id -> other customer accounts with the same ID number
   const [sharedIdFor, setSharedIdFor] = useState(null)
 
-  async function load() {
-    setLoading(true)
+  async function load({ silent = false } = {}) {
+    if (!silent) setLoading(true)
     // Each request loads on its own, so a slow check (blacklist or shared-ID lookup) can't hide the bookings.
     const [bookingResult, staffResult, matchResult, sharedResult] = await Promise.allSettled([
       api.get('/bookings', { status: filter, sort: 'created_desc' }),
@@ -62,7 +62,7 @@ export default function Bookings() {
 
   useEffect(() => {
     load()
-    return subscribe('bookings', load)
+    return subscribe('bookings', () => load({ silent: true }))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter])
 

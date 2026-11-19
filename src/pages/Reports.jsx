@@ -27,8 +27,8 @@ export default function Reports() {
   const [exportFormat, setExportFormat] = useState('csv')
   const [facebookPage, setFacebookPage] = useState(() => localStorage.getItem('pardz-facebook-page') || 'Pardz Car Rental')
 
-  async function load() {
-    setLoading(true)
+  async function load({ silent = false } = {}) {
+    if (!silent) setLoading(true)
     try {
       setRows(await api.get('/bookings', { status: 'all', start_from: from, start_to: to, sort: 'start_desc' }))
     } catch (error) {
@@ -38,7 +38,7 @@ export default function Reports() {
     setLoading(false)
   }
 
-  useEffect(() => { load(); return subscribe('*', load) }, [])
+  useEffect(() => { load(); return subscribe('*', () => load({ silent: true })) }, [])
 
   function exportCsv(branded = false) {
     const header = ['Booking ID', 'Customer', 'Vehicle', 'Plate', 'Start date', 'Pickup time', 'End date', 'Return time', 'Service', 'Status', 'Late return']

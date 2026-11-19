@@ -58,8 +58,8 @@ export default function Customers() {
   const [showChurnInfo, setShowChurnInfo] = useState(false)
   const [page, setPage] = useState(1) // NEW: current page number
 
-  async function load() {
-    setLoading(true)
+  async function load({ silent = false } = {}) {
+    if (!silent) setLoading(true)
     try {
       const [customerList, predictions, matches] = await Promise.all([
         api.get('/admin/customers'),
@@ -81,7 +81,7 @@ export default function Customers() {
 
   useEffect(() => {
     load()
-    return subscribe('notifications', load)
+    return subscribe('notifications', () => load({ silent: true }))
   }, [])
 
   // NEW: go back to page 1 whenever a filter or the search changes
