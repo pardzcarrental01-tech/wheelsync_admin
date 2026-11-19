@@ -46,16 +46,22 @@ export default function Blacklist() {
   const [busy, setBusy] = useState(false)
   const [recordsPage, setRecordsPage] = useState(1) // NEW: page of the blacklist records table
   const [blockedPage, setBlockedPage] = useState(1) // NEW: page of the blocked accounts table
+  const [sharedGroups, setSharedGroups] = useState([]) // accounts that share an ID number
+  const [customerNames, setCustomerNames] = useState({})
 
   async function load({ silent = false } = {}) {
     if (!silent) setLoading(true)
     try {
-      const [blocked, list] = await Promise.all([
+      const [blocked, list, all, shared] = await Promise.all([
         api.get('/admin/customers', { blacklisted: true }),
         api.get('/admin/blacklist-records'),
+        api.get('/admin/customers').catch(() => []),
+        api.get('/admin/customers/shared-ids').catch(() => []),
       ])
       setCustomers(blocked)
       setRecords(list)
+      setCustomerNames(Object.fromEntries(all.map((customer) => [customer.id, customer.full_name])))
+      setSharedGroups(shared)
     } catch (loadError) {
       console.error('Unable to load blacklist:', loadError.message)
     }
@@ -186,6 +192,25 @@ export default function Blacklist() {
         </select>
       </FilterBar>
 
+      {sharedGroups.length > 0 && (
+        <section className="card p-5 mb-6" style={{ borderColor: 'var(--warning)' }}>
+          <h2 className="font-display font-semibold mb-1">Same ID number on more than one account</h2>
+          <p className="text-sm mb-3" style={{ color: 'var(--text-muted)' }}>Someone else may be using this ID number. Check the ID before approving these customers.</p>
+          <ul className="flex flex-col gap-2 text-sm">
+            {sharedGroups.map((group) => (
+              <li key={group.customer_id} className="rounded-lg p-3" style={{ background: 'var(--bg-surface-2)' }}>
+                <p className="font-medium">
+                  {customerNames[group.customer_id] || 'Customer account'}
+                  {group.blacklisted_share && <span className="badge badge-rejected ml-2">Shares with a blacklisted account</span>}
+                </p>
+                <p style={{ color: 'var(--text-muted)' }}>
+                  Same ID number as: {group.shares_with.map((other) => `${other.full_name} (${other.matching_numbers.join(', ')})`).join('; ')}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       {loading ? <p style={{ color: 'var(--text-muted)' }}>Loading...</p> : (
         <div className="flex flex-col gap-6">
           <section>
