@@ -221,7 +221,7 @@ export default function Inspections() {
     const printWindow = window.open('', '_blank', 'width=900,height=700')
     if (!printWindow) return setError('Allow pop-ups for this admin site to print documents.')
     try {
-      printRentalPack(await api.get(`/bookings/${booking.id}/print-pack`), printWindow, mode)
+      printRentalPack(await api.get(`/bookings/${booking.id}/print-pack`), printWindow, mode, { checklistOnly: true })
     } catch (printError) {
       printWindow.close()
       setError(`Could not prepare the print pack: ${printError.message}`)
