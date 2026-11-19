@@ -381,7 +381,7 @@ export default function Bookings() {
         />
       )}
       {customerCardFor && (
-        <Modal title={customerCardFor.full_name || 'Customer'} description="Check these details against other accounts before approving the booking." onClose={() => setCustomerCardFor(null)} size="max-w-lg">
+        <Modal title={customerCardFor.full_name || 'Customer'} onClose={() => setCustomerCardFor(null)} size="max-w-lg">
           <div className="flex flex-col gap-3 pb-5 text-sm">
             <dl className="grid grid-cols-2 gap-3">
               <div><dt className="text-xs" style={{ color: 'var(--text-muted)' }}>Email</dt><dd>{customerCardFor.email || 'Not provided'}</dd></div>
