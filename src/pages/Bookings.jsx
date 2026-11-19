@@ -38,6 +38,7 @@ export default function Bookings() {
   const [blacklistMatches, setBlacklistMatches] = useState({}) // customer id -> matching record on Pardz's blacklist
   const [sharedIds, setSharedIds] = useState({}) // customer id -> other customer accounts with the same ID number
   const [sharedIdFor, setSharedIdFor] = useState(null)
+  const [customerCardFor, setCustomerCardFor] = useState(null) // customer details card
 
   async function load({ silent = false } = {}) {
     if (!silent) setLoading(true)
@@ -85,7 +86,7 @@ export default function Bookings() {
     } catch (error) {
       setActionError(error.message)
     }
-    await load()
+    await load({ silent: true })
     setBusyBooking('')
   }
 
@@ -102,7 +103,7 @@ export default function Bookings() {
     } catch (error) {
       setActionError(error.message)
     }
-    await load()
+    await load({ silent: true })
     setBusyBooking('')
   }
 
@@ -150,7 +151,7 @@ export default function Bookings() {
     } catch (error) {
       setActionError(error.message)
     }
-    await load()
+    await load({ silent: true })
     setBusyBooking('')
   }
 
@@ -172,7 +173,7 @@ export default function Bookings() {
         setActionError('This booking is no longer pending. The list has been refreshed.')
         setAssignFor(null)
         setSelectedStaff('')
-        await load()
+        await load({ silent: true })
       } else {
         setActionError(message.toLowerCase().includes('already reserved')
           ? 'This booking overlaps an accepted or ongoing rental, so it remains Pending. Resolve the conflicting booking or request different dates before accepting.'
@@ -186,7 +187,7 @@ export default function Bookings() {
 
     setAssignFor(null)
     setSelectedStaff('')
-    await load()
+    await load({ silent: true })
     setBusyBooking('')
   }
 
@@ -231,7 +232,7 @@ export default function Bookings() {
                 return (
                 <tr key={booking.id} style={{ borderTop: '1px solid var(--border-soft)' }}>
                   <td className="py-3 px-4 align-top">
-                    <p className="font-medium">{booking.profiles?.full_name}</p>
+                    <button type="button" onClick={() => setCustomerCardFor(booking.profiles)} className="font-medium text-left hover:underline" style={{ color: 'var(--nebula-3)' }}>{booking.profiles?.full_name}</button>
                     {booking.profiles?.is_blacklisted && <span className="badge badge-rejected mt-1">Blacklisted</span>}
                     {!booking.profiles?.is_blacklisted && blacklistMatches[booking.profiles?.id] && (
                       blacklistMatches[booking.profiles?.id].matched_by === 'id_number' ? (
@@ -378,6 +379,29 @@ export default function Bookings() {
           onClose={() => setEditFor(null)}
           onSaved={() => { setEditFor(null); setActionMessage('Booking updated. The customer was notified.'); load() }}
         />
+      )}
+      {customerCardFor && (
+        <Modal title={customerCardFor.full_name || 'Customer'} description="Check these details against other accounts before approving the booking." onClose={() => setCustomerCardFor(null)} size="max-w-lg">
+          <div className="flex flex-col gap-3 pb-5 text-sm">
+            <dl className="grid grid-cols-2 gap-3">
+              <div><dt className="text-xs" style={{ color: 'var(--text-muted)' }}>Email</dt><dd>{customerCardFor.email || 'Not provided'}</dd></div>
+              <div><dt className="text-xs" style={{ color: 'var(--text-muted)' }}>Phone</dt><dd>{customerCardFor.phone || 'Not provided'}</dd></div>
+              <div><dt className="text-xs" style={{ color: 'var(--text-muted)' }}>Age</dt><dd>{customerCardFor.age ?? 'Not provided'}</dd></div>
+              <div><dt className="text-xs" style={{ color: 'var(--text-muted)' }}>Verification</dt><dd>{customerCardFor.verification_status || 'unsubmitted'}</dd></div>
+              <div className="col-span-2"><dt className="text-xs" style={{ color: 'var(--text-muted)' }}>Address</dt><dd>{customerCardFor.address || 'Not provided'}</dd></div>
+              <div className="col-span-2"><dt className="text-xs" style={{ color: 'var(--text-muted)' }}>Primary ID</dt><dd>{customerCardFor.id_type || 'Not provided'} · {customerCardFor.id_number || 'No number'}</dd></div>
+              <div className="col-span-2"><dt className="text-xs" style={{ color: 'var(--text-muted)' }}>Second ID</dt><dd>{customerCardFor.second_id_type || 'Not provided'} · {customerCardFor.second_id_number || 'No number'}</dd></div>
+            </dl>
+            {(sharedIds[customerCardFor.id]?.shares_with || []).length > 0 && (
+              <div className="card p-3">
+                <p className="font-medium mb-1" style={{ color: 'var(--warning)' }}>Same ID number as another account</p>
+                {sharedIds[customerCardFor.id].shares_with.map((other) => (
+                  <p key={other.customer_id} className="text-sm">{other.full_name} · {other.email || 'No email'} · {other.phone || 'No phone'} · {other.matching_numbers.join(', ')}</p>
+                ))}
+              </div>
+            )}
+          </div>
+        </Modal>
       )}
       {sharedIdFor && (
         <Modal
