@@ -135,7 +135,7 @@ export function printCustomerDocuments(customer, documents, printWindow) {
 }
 
 // mode: 'print' opens the print dialog, 'view' only shows the pack (it can still be printed from the browser).
-export function printRentalPack(pack, printWindow, mode = 'print') {
+export function printRentalPack(pack, printWindow, mode = 'print', { checklistOnly = false } = {}) {
   const { customer } = pack
   // Same text and layout as the agreement on the Bookings page (lib/agreementPdf.js), so both printouts match.
   const a = buildAgreement(pack)
@@ -198,7 +198,8 @@ export function printRentalPack(pack, printWindow, mode = 'print') {
       <tr><th>Damage notes</th><td>${escapeHtml(inspection.damage_notes)}</td></tr><tr><th>Damage fee</th><td>PHP ${Number(inspection.damage_fee || 0).toLocaleString()}</td></tr></table>
       <h2>Vehicle damage</h2><table><tr><th>Location</th><th>Damage</th></tr>${marks || '<tr><td colspan="2">No damage marked</td></tr>'}</table>
       <h2>Sign-off</h2><table><tr><th>Renter</th><td>${signed(inspection.renter_name, inspection.renter_signed)}</td></tr>
-      <tr><th>Staff</th><td>${signed(inspection.staff_name, inspection.staff_signed)}</td></tr></table></section>${photos}`
+      <tr><th>Staff</th><td>${signed(inspection.staff_name, inspection.staff_signed)}</td></tr></table></section>${checklistOnly ? '' : photos}`
   }).join('')
-  openPrintWindow(`Rental pack - ${customer.full_name}`, `${agreement}${documents}${inspections}`, printWindow, mode === 'print')
+  const body = checklistOnly ? inspections : `${agreement}${documents}${inspections}`
+  openPrintWindow(`${checklistOnly ? 'Inspection checklists' : 'Rental pack'} - ${customer.full_name}`, body, printWindow, mode === 'print')
 }
