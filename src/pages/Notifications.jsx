@@ -245,7 +245,7 @@ export default function Notifications() {
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={tone}>{kind.label}</span>
-                      <span className="text-xs" style={{ color: 'var(--text-faint)' }} title={new Date(item.created_at).toLocaleString()}>{timeAgo(item.created_at)} · {new Date(item.created_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}</span>
+                      <span className="text-xs" style={{ color: 'var(--text-faint)' }} title={new Date(item.created_at).toLocaleString()}>{timeAgo(item.created_at)} · {new Date(item.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}</span>
                       {!item.is_read && <span className="badge badge-ongoing ml-auto">New</span>}
                     </div>
                     <p className="font-medium mt-1.5">{item.title}</p>
