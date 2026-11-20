@@ -73,7 +73,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <StatCard label="Pending requests" value={stats.pending} icon={CalendarClock} />
         <StatCard label="Fleet size" value={stats.vehicles} icon={Car} />
-        <StatCard label="Current Renters" value={stats.current_renters} icon={Users} hint="Customers with a car out right now" />
+        <StatCard label="Current Renters" value={stats.current_renters} icon={Users} hint="Customers with an ongoing booking right now" />
       </div>
 
       {/* 2. Revenue, all periods in one panel */}
