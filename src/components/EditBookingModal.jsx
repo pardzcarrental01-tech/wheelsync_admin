@@ -3,6 +3,7 @@ import { api } from '../lib/api'
 import Modal from './Modal'
 import PhoneInput from './PhoneInput'
 import IdNumberInput from './IdNumberInput'
+import IdTypeSelect from './IdTypeSelect'
 import { internationalPhone } from '../lib/phone'
 
 const SERVICE_LABELS = { self_drive: 'Self-drive', with_driver: 'With driver', pickup_dropoff: 'Pickup / drop-off' }
@@ -130,9 +131,9 @@ export default function EditBookingModal({ booking, onClose, onSaved }) {
           <PhoneInput value={person.phone} onChange={(phone) => setPerson({ ...person, phone })} />
           {personField('Age', 'age', { type: 'number', min: 1, max: 120 })}
           {personField('Home address', 'address', { maxLength: 500 })}
-          {personField('Primary ID type', 'id_type', { maxLength: 100, placeholder: "e.g. Driver's License" })}
+          <IdTypeSelect label="Primary ID type" value={person.id_type || ''} onChange={(id_type) => setPerson({ ...person, id_type, id_number: '' })} />
           <IdNumberInput label="Primary ID number" idType={person.id_type} value={person.id_number} onChange={(id_number) => setPerson({ ...person, id_number })} />
-          {personField('Second ID type', 'second_id_type', { maxLength: 100 })}
+          <IdTypeSelect label="Second ID type" value={person.second_id_type || ''} onChange={(second_id_type) => setPerson({ ...person, second_id_type, second_id_number: '' })} />
           <IdNumberInput label="Second ID number" idType={person.second_id_type} value={person.second_id_number} onChange={(second_id_number) => setPerson({ ...person, second_id_number })} />
           <p className="text-xs sm:col-span-2" style={{ color: 'var(--text-faint)' }}>ID photos are changed by the customer in their account, or reviewed on the Customers page.</p>
         </fieldset>
