@@ -2,6 +2,7 @@ import { AlignmentType, BorderStyle, Document, Packer, Paragraph, ShadingType, T
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { downloadBlob } from './download'
+import { time12 } from './time'
 
 // Branded rental report (Pardz header, contacts, period, summary, records table) as Word or PDF.
 // Both use the same columns and colours so the two files look alike.
@@ -17,7 +18,7 @@ function tableRows(rows) {
     String(index + 1),
     row.profiles?.full_name || 'Unknown customer',
     `${row.vehicles?.make || ''} ${row.vehicles?.model || ''}`.trim() + (row.vehicles?.plate_number ? `\n${row.vehicles.plate_number}` : ''),
-    `${row.start_date} ${row.pickup_time?.slice(0, 5) || ''}\nto ${row.end_date} ${row.return_time?.slice(0, 5) || ''}`,
+    `${row.start_date} ${time12(row.pickup_time)}\nto ${row.end_date} ${time12(row.return_time)}`,
     serviceLabel(row.service_type),
     row.status,
     row.late_return ? 'Yes' : 'No',
