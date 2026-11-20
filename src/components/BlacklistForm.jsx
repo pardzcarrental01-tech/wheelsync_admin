@@ -11,21 +11,16 @@ export const SOURCES = { RN: 'RN (as written on the list)', FB: 'Facebook', WS: 
 export const REASONS = ['Bad Renter', 'Payment Issue', 'Scammer', 'Rent Sangla', 'Rent Tangay', 'Sub-Lease', 'Identity Theft', 'Drug Related']
 export const EMPTY_RECORD = { full_name: '', id_number: '', area: 'CDO', source: 'RN', reason: 'Bad Renter', notes: '' }
 
-// The form values for a customer account: name, primary ID number, Cagayan de Oro, source WheelSync,
-// and their contact details and second ID in the notes, so the record still identifies them later.
+// The form values for a customer account: name, primary ID number (or the second one), Cagayan de Oro and
+// source WheelSync. Notes start empty; the admin writes them if needed.
 export function recordFromCustomer(customer) {
-  const contact = [customer.email, customer.phone].filter(Boolean).join(' · ')
-  const secondId = customer.second_id_number
-    ? `Second ID: ${customer.second_id_type ? `${customer.second_id_type} ` : ''}${customer.second_id_number}`
-    : ''
-  const firstIdType = customer.id_number && customer.id_type ? `Primary ID: ${customer.id_type}` : ''
   return {
     full_name: customer.full_name || '',
     id_number: customer.id_number || customer.second_id_number || '',
     area: 'CDO',
     source: 'WS',
     reason: 'Bad Renter',
-    notes: [contact && `WheelSync account: ${contact}`, firstIdType, customer.id_number ? secondId : ''].filter(Boolean).join('\n'),
+    notes: '',
   }
 }
 
