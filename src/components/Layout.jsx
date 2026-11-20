@@ -225,7 +225,7 @@ export default function Layout({ children }) {
           <div className="flex items-center gap-3">
             <div className="text-right leading-tight">
               <p className="text-sm font-semibold">{now.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</p>
-              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{now.toLocaleTimeString()}</p>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{now.toLocaleTimeString('en-US', { hour12: true })}</p>
             </div>
             <button onClick={refresh} className="btn-ghost p-2.5" aria-label="Refresh this page" title="Reload the latest data on this page"><RefreshCw size={16} /></button>
             <NavLink
