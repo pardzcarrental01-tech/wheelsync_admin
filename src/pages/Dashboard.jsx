@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { rowClickProps } from '../lib/rowClick'
 import { CalendarClock, Car, Users, TrendingUp, CalendarDays, CalendarRange, Calendar } from 'lucide-react'
 import { api } from '../lib/api'
 import { subscribe } from '../lib/realtime'
@@ -13,6 +15,7 @@ import { matchesSearch } from '../lib/search'
 import { time12 } from '../lib/time'
 
 export default function Dashboard() {
+  const navigate = useNavigate()
   const [stats, setStats] = useState({ pending: 0, vehicles: 0, customers: 0, revenue: 0 })
   const [revenue, setRevenue] = useState({ today: 0, month: 0, year: 0, total: 0 })
   const [recent, setRecent] = useState([])
@@ -132,7 +135,7 @@ export default function Dashboard() {
               </thead>
               <tbody>
                 {visibleRecent.map((b) => (
-                  <tr key={b.id} style={{ borderTop: '1px solid var(--border-soft)' }}>
+                  <tr key={b.id} {...rowClickProps(() => navigate('/bookings', { state: { openBookingId: b.id } }), `Open the booking of ${b.profiles?.full_name || 'this customer'}`)} style={{ borderTop: '1px solid var(--border-soft)' }}>
                     <td className="py-2.5 pr-4">{b.profiles?.full_name ?? '—'}</td>
                     <td className="py-2.5 pr-4">{b.vehicles ? `${b.vehicles.make} ${b.vehicles.model}` : '—'}</td>
                     <td className="py-2.5 pr-4">{b.start_date} {time12(b.pickup_time)} → {b.end_date} {time12(b.return_time)}</td>
