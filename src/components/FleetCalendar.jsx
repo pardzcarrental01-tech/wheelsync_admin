@@ -15,12 +15,12 @@ const COLORS = {
   pending: { border: 'rgb(249,115,22)', fill: 'rgba(249,115,22,0.16)' },
   rented: { border: 'rgb(239,68,68)', fill: 'rgba(239,68,68,0.18)' },
   maintenance: { border: 'rgb(148,163,184)', fill: 'rgba(148,163,184,0.12)' },
-  cleaning: { border: 'rgb(148,163,184)', fill: 'rgba(148,163,184,0.12)' },
+  cleaning: { border: 'rgb(255,255,255)', fill: 'rgba(255,255,255,0.10)' },
 }
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const SERVICES = { self_drive: 'Self-drive', with_driver: 'With driver', pickup_dropoff: 'Pickup / drop-off' }
 const STATUS = { pending: 'Pending request', accepted: 'Accepted (not released yet)', ongoing: 'Ongoing (car is out)', completed: 'Completed', recorded: 'Walk-in rental (Transactions)' }
-const time = (t) => (t ? new Date(`2000-01-01T${t}`).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : '')
+const time = (t) => (t ? new Date(`2000-01-01T${t}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '')
 const longDate = (d) => new Date(`${d}T00:00`).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
 
 function Row({ label, children }) {
@@ -116,7 +116,7 @@ const nextIso = (key) => {
   day.setDate(day.getDate() + 1)
   return iso(day)
 }
-const localTime = (value) => value ? new Date(`2000-01-01T${value.slice(11, 16)}`).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : ''
+const localTime = (value) => value ? new Date(`2000-01-01T${value.slice(11, 16)}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : ''
 
 export default function FleetCalendar() {
   const [month, setMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1) })
@@ -141,7 +141,7 @@ export default function FleetCalendar() {
       }
     }
     load()
-    const unsubscribe = subscribe('bookings', load)
+    const unsubscribe = subscribe('bookings', load, { live: true }) // refreshes even while a car's details are open
     return () => { active = false; unsubscribe() }
   }, [start, end])
 
@@ -185,16 +185,22 @@ export default function FleetCalendar() {
     if (vehicleId !== 'all') {
       const car = cars.find((c) => c.vehicle.id === vehicleId)
       const kind = car?.kind ?? 'available'
-      return { kind, cars, free, rented: count('rented'), pending: count('pending'), dots: [kind] }
+      return { kind, cars, free, rented: count('rented'), pending: count('pending'), dots: car?.availableFrom ? ['rented', kind] : [kind] }
     }
     const kind = data.vehicles.length && free === 0
       ? count('rented') ? 'rented' : count('cleaning') ? 'cleaning' : 'maintenance'
       : count('pending') ? 'pending' : 'available'
     // One dot per kind of car that day, in this order: red rented, orange pending, green available, grey maintenance.
     // Maintenance is the car's status now, so its dot only shows from today on.
-    const dots = ['rented', 'pending', 'available', 'cleaning', 'maintenance'].filter((k) => count(k) > 0 && (!['maintenance', 'cleaning'].includes(k) || key >= today))
+    // A car that is rented until later that day also gets the red dot, so a day with a rental on it never looks untouched.
+    const partlyRented = cars.some((c) => c.kind === 'available' && c.availableFrom)
+    const dots = ['rented', 'pending', 'available', 'cleaning', 'maintenance'].filter((k) => (count(k) > 0 || (k === 'rented' && partlyRented)) && (!['maintenance', 'cleaning'].includes(k) || key >= today))
     return { kind, cars, free, rented: count('rented'), pending: count('pending'), dots }
   }
+
+  // The open car details are rebuilt from the latest data each refresh, so they never show an old status.
+  const detailVehicle = detail && data.vehicles.find((v) => v.id === detail.vehicleId)
+  const liveDetail = detailVehicle ? { vehicle: detailVehicle, ...carDay(detailVehicle, detail.day) } : null
 
   const selected = dayInfo(selectedDay)
   const selectedCars = vehicleId === 'all' ? selected.cars : selected.cars.filter((c) => c.vehicle.id === vehicleId)
@@ -290,7 +296,7 @@ export default function FleetCalendar() {
                     <li key={vehicle.id}>
                       <button
                         type="button"
-                        onClick={() => setDetail({ vehicle, entry, kind, availableFrom })}
+                        onClick={() => setDetail({ vehicleId: vehicle.id, day: selectedDay })}
                         className="w-full rounded-lg px-3 py-1.5 text-left text-xs transition hover:brightness-125"
                         style={{ background: 'var(--bg-surface-2)', borderLeft: `3px solid ${COLORS[kind].border}` }}
                         title="See details"
@@ -299,7 +305,7 @@ export default function FleetCalendar() {
                         {entry && (
                           <span className="block" style={{ color: 'var(--text-muted)' }}>
                             {entry.customer} · {entry.start_date} → {entry.end_date}{entry.status === 'recorded' ? ' · walk-in' : ''}
-                            {kind === 'available' && availableFrom && <span className="block">Available from {localTime(availableFrom)} after cleaning</span>}
+                            {kind === 'available' && availableFrom && <span className="block">{entry.status === 'completed' ? `Available from ${localTime(availableFrom)} after cleaning` : `Rented until ${localTime(availableFrom)}, free after that`}</span>}
                           </span>
                         )}
                       </button>
@@ -312,7 +318,7 @@ export default function FleetCalendar() {
           </div>
         </div>
       </div>
-      {detail && <CarDetails detail={detail} entries={data.entries} onClose={() => setDetail(null)} />}
+      {liveDetail && <CarDetails detail={liveDetail} entries={data.entries} onClose={() => setDetail(null)} />}
     </div>
   )
 }
