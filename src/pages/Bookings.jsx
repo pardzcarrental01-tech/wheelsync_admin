@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { rowClickProps } from '../lib/rowClick'
-import { Ban, Check, CircleCheck, Clock, Eye, Mail, Pencil, Printer, UserRoundCog, X } from 'lucide-react'
+import { Ban, Check, CircleCheck, Clock, Eye, Mail, Pencil, Printer, StickyNote, UserRoundCog, X } from 'lucide-react'
 import { api } from '../lib/api'
 import { subscribe } from '../lib/realtime'
 import Layout from '../components/Layout'
@@ -46,6 +46,7 @@ export default function Bookings() {
   const [customerCardFor, setCustomerCardFor] = useState(null) // booking card: the customer, plus the booking under `booking`
   const [openBookingId, setOpenBookingId] = useState(location.state?.openBookingId || '')
   const [cancellingId, setCancellingId] = useState('') // only the booking being cancelled
+  const [noteFor, setNoteFor] = useState(null) // booking whose note is open
 
   async function load({ silent = false } = {}) {
     if (!silent) setLoading(true)
@@ -288,7 +289,17 @@ export default function Bookings() {
                   <td className="py-3 px-4 align-top">
                     <p className="capitalize">{String(booking.service_type || 'self_drive').replaceAll('_', ' ')}</p>
                     <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{booking.pickup_location || 'No pickup required'}</p>
-                    {booking.notes && <p className="text-xs mt-1.5 max-w-56 whitespace-normal line-clamp-2" style={{ color: 'var(--text-primary)' }} title={booking.notes}><span className="font-semibold" style={{ color: 'var(--text-muted)' }}>Note: </span>{booking.notes}</p>}
+                    {booking.notes && (
+                      <button
+                        type="button"
+                        onClick={() => setNoteFor(booking)}
+                        className="mt-2 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium"
+                        style={{ background: 'transparent', border: '1px solid var(--nebula-3)', color: 'var(--nebula-3)' }}
+                        title="Read the customer's note"
+                      >
+                        <StickyNote size={13} /> View note
+                      </button>
+                    )}
                     {booking.rejection_reason && <p className="text-xs mt-1 max-w-56 whitespace-normal" style={{ color: 'var(--danger)' }}>Reason: {booking.rejection_reason}</p>}
                   </td>
                   <td className="py-3 px-4 align-top">
@@ -393,6 +404,18 @@ export default function Bookings() {
           onClose={() => setEditFor(null)}
           onSaved={() => { setEditFor(null); setActionMessage('Booking updated. The customer was notified.'); load() }}
         />
+      )}
+      {noteFor && (
+        <Modal
+          title="Note from the customer"
+          description={`${noteFor.profiles?.full_name || 'Customer'} · ${noteFor.vehicles?.make || ''} ${noteFor.vehicles?.model || ''} · ${noteFor.start_date} to ${noteFor.end_date}`}
+          onClose={() => setNoteFor(null)}
+          size="max-w-lg"
+        >
+          <section className="card p-4 mb-5" style={{ borderLeft: '3px solid var(--nebula-3)' }}>
+            <p className="text-[15px] leading-relaxed whitespace-pre-wrap break-words" style={{ color: 'var(--text-primary)' }}>{noteFor.notes}</p>
+          </section>
+        </Modal>
       )}
       {customerCardFor && (
         <Modal title={customerCardFor.full_name || 'Customer'} description={customerCardFor.booking ? 'Booking and customer information' : 'Customer information'} onClose={() => setCustomerCardFor(null)} size="max-w-3xl">
