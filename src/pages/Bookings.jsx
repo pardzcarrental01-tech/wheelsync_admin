@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { useLocation } from 'react-router-dom'
+import { rowClickProps } from '../lib/rowClick'
 import { Ban, Check, CircleCheck, Clock, Eye, Mail, Pencil, Printer, UserRoundCog, X } from 'lucide-react'
 import { api } from '../lib/api'
 import { subscribe } from '../lib/realtime'
@@ -22,7 +24,9 @@ function formatDateTime(value) {
 export default function Bookings() {
   const [bookings, setBookings] = useState([])
   const [staff, setStaff] = useState([])
-  const [filter, setFilter] = useState('pending')
+  const location = useLocation()
+  // Opened from a dashboard row: show every status so that booking is in the list, then open its card.
+  const [filter, setFilter] = useState(location.state?.openBookingId ? 'all' : 'pending')
   const [assignFor, setAssignFor] = useState(null)
   const [selectedStaff, setSelectedStaff] = useState('')
   const [search, setSearch] = useState('')
@@ -39,7 +43,8 @@ export default function Bookings() {
   const [blacklistMatches, setBlacklistMatches] = useState({}) // customer id -> matching record on Pardz's blacklist
   const [sharedIds, setSharedIds] = useState({}) // customer id -> other customer accounts with the same ID number
   const [sharedIdFor, setSharedIdFor] = useState(null)
-  const [customerCardFor, setCustomerCardFor] = useState(null) // customer details card
+  const [customerCardFor, setCustomerCardFor] = useState(null) // booking card: the customer, plus the booking under `booking`
+  const [openBookingId, setOpenBookingId] = useState(location.state?.openBookingId || '')
   const [cancellingId, setCancellingId] = useState('') // only the booking being cancelled
 
   async function load({ silent = false } = {}) {
@@ -68,6 +73,13 @@ export default function Bookings() {
     return subscribe('bookings', () => load({ silent: true }))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter])
+
+  useEffect(() => {
+    if (!openBookingId || loading) return
+    const target = bookings.find((item) => item.id === openBookingId)
+    if (target) setCustomerCardFor({ ...target.profiles, booking: target })
+    setOpenBookingId('')
+  }, [openBookingId, loading, bookings])
 
   const visibleBookings = bookings
     .filter((booking) => `${booking.profiles?.full_name ?? ''} ${booking.profiles?.email ?? ''} ${booking.profiles?.phone ?? ''} ${booking.vehicles?.make ?? ''} ${booking.vehicles?.model ?? ''} ${booking.vehicles?.plate_number ?? ''}`.toLowerCase().includes(search.trim().toLowerCase()))
@@ -232,9 +244,9 @@ export default function Bookings() {
                 const shared = sharedIds[booking.profiles?.id]
                 const sharedNames = shared?.shares_with.map((other) => other.full_name).join(', ')
                 return (
-                <tr key={booking.id} style={{ borderTop: '1px solid var(--border-soft)' }}>
+                <tr key={booking.id} {...rowClickProps(() => setCustomerCardFor({ ...booking.profiles, booking }), `Open the booking of ${booking.profiles?.full_name || 'this customer'}`)} style={{ borderTop: '1px solid var(--border-soft)' }}>
                   <td className="py-3 px-4 align-top">
-                    <button type="button" onClick={() => setCustomerCardFor(booking.profiles)} className="font-medium text-left hover:underline" style={{ color: 'var(--nebula-3)' }}>{booking.profiles?.full_name}</button>
+                    <p className="font-medium" style={{ color: 'var(--nebula-3)' }}>{booking.profiles?.full_name}</p>
                     {booking.profiles?.is_blacklisted && <span className="badge badge-rejected mt-1">Blacklisted</span>}
                     {!booking.profiles?.is_blacklisted && blacklistMatches[booking.profiles?.id] && (
                       blacklistMatches[booking.profiles?.id].matched_by === 'id_number' ? (
@@ -276,7 +288,7 @@ export default function Bookings() {
                   <td className="py-3 px-4 align-top">
                     <p className="capitalize">{String(booking.service_type || 'self_drive').replaceAll('_', ' ')}</p>
                     <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{booking.pickup_location || 'No pickup required'}</p>
-                    {booking.notes && <p className="text-xs mt-1 italic max-w-56 whitespace-normal" style={{ color: 'var(--text-faint)' }}>&quot;{booking.notes}&quot;</p>}
+                    {booking.notes && <p className="text-xs mt-1.5 max-w-56 whitespace-normal line-clamp-2" style={{ color: 'var(--text-primary)' }} title={booking.notes}><span className="font-semibold" style={{ color: 'var(--text-muted)' }}>Note: </span>{booking.notes}</p>}
                     {booking.rejection_reason && <p className="text-xs mt-1 max-w-56 whitespace-normal" style={{ color: 'var(--danger)' }}>Reason: {booking.rejection_reason}</p>}
                   </td>
                   <td className="py-3 px-4 align-top">
@@ -383,7 +395,9 @@ export default function Bookings() {
         />
       )}
       {customerCardFor && (
-        <Modal title={customerCardFor.full_name || 'Customer'} description="Customer information" onClose={() => setCustomerCardFor(null)} size="max-w-3xl">
+        <Modal title={customerCardFor.full_name || 'Customer'} description={customerCardFor.booking ? 'Booking and customer information' : 'Customer information'} onClose={() => setCustomerCardFor(null)} size="max-w-3xl">
+          {customerCardFor.booking && <BookingDetails booking={customerCardFor.booking} staffName={staffName} />}
+          {customerCardFor.booking && <p className="mb-2 text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Customer</p>}
           <div className="grid sm:grid-cols-3 gap-3 pb-5">
             <div className="card p-3"><p className="text-xs" style={{ color: 'var(--text-muted)' }}>Full name</p><p className="font-medium mt-1">{customerCardFor.full_name}</p></div>
             <div className="card p-3"><p className="text-xs" style={{ color: 'var(--text-muted)' }}>Phone number</p><p className="font-medium mt-1">{customerCardFor.phone || 'Not provided'}</p></div>
@@ -454,5 +468,53 @@ export default function Bookings() {
         </div>
       )}
     </Layout>
+  )
+}
+
+const SERVICE_LABELS = { self_drive: 'Self-drive', with_driver: 'With driver', pickup_dropoff: 'Pickup / drop-off' }
+
+function Detail({ label, children }) {
+  return (
+    <div className="card p-3">
+      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{label}</p>
+      <div className="font-medium mt-1">{children}</div>
+    </div>
+  )
+}
+
+// Top part of the booking card: what was booked, when, and the customer's note in full.
+function BookingDetails({ booking, staffName }) {
+  const destination = booking.destination_from
+    ? `${booking.destination_from} → ${booking.destination_to || '—'}`
+    : booking.destination_to || 'Not provided'
+  return (
+    <>
+      <p className="mb-2 text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Booking</p>
+      <div className="grid sm:grid-cols-3 gap-3 pb-3">
+        <Detail label="Vehicle">
+          {booking.vehicles?.make} {booking.vehicles?.model}
+          <p className="text-sm font-normal" style={{ color: 'var(--text-muted)' }}>{booking.vehicles?.plate_number}</p>
+        </Detail>
+        <Detail label="Pickup">{booking.start_date} · {time12(booking.pickup_time, '—')}</Detail>
+        <Detail label="Return">{booking.end_date} · {time12(booking.return_time, '—')}</Detail>
+        <Detail label="Service">{SERVICE_LABELS[booking.service_type] || 'Self-drive'}</Detail>
+        <Detail label="Pickup / drop-off location">{booking.pickup_location || 'No pickup required'}</Detail>
+        <Detail label="Destination">{destination}</Detail>
+        <Detail label="Status"><Badge status={booking.status} /></Detail>
+        <Detail label="Assigned staff">{booking.assigned_staff_id ? staffName(booking.assigned_staff_id) : 'Not assigned yet'}</Detail>
+      </div>
+      <section className="card p-4 mb-3" style={{ borderLeft: '3px solid var(--nebula-3)' }}>
+        <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Note from the customer</p>
+        {booking.notes
+          ? <p className="mt-2 text-[15px] leading-relaxed whitespace-pre-wrap break-words" style={{ color: 'var(--text-primary)' }}>{booking.notes}</p>
+          : <p className="mt-2 text-sm" style={{ color: 'var(--text-faint)' }}>No note was added to this booking.</p>}
+      </section>
+      {booking.rejection_reason && (
+        <section className="card p-4 mb-3" style={{ borderLeft: '3px solid var(--danger)' }}>
+          <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Reason for rejection</p>
+          <p className="mt-2 text-[15px] leading-relaxed whitespace-pre-wrap break-words" style={{ color: 'var(--danger)' }}>{booking.rejection_reason}</p>
+        </section>
+      )}
+    </>
   )
 }
