@@ -72,32 +72,37 @@ export default function Dashboard() {
       </div>
       {statsError && <p role="alert" className="text-sm px-4 py-3 rounded-xl mb-5" style={{ background: 'rgba(251,113,133,0.12)', color: 'var(--danger)' }}>{statsError}</p>}
 
-      {/* 1. At a glance */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <StatCard label="Pending requests" value={stats.pending} icon={CalendarClock} />
-        <StatCard label="Fleet size" value={stats.vehicles} icon={Car} />
-        <StatCard label="Current Renters" value={stats.current_renters} icon={Users} hint="Customers with an ongoing booking right now" />
-      </div>
+      {/* Top row: on wide screens, the numbers on the left and Returns due on the right; stacked on smaller screens. */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6 items-stretch">
+        <div className="flex min-w-0 flex-col gap-4">
+          {/* 1. At a glance */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <StatCard label="Pending requests" value={stats.pending} icon={CalendarClock} />
+            <StatCard label="Fleet size" value={stats.vehicles} icon={Car} />
+            <StatCard label="Current Renters" value={stats.current_renters} icon={Users} hint="Customers with an ongoing booking right now" />
+          </div>
 
-      {/* 2. Revenue, all periods in one panel */}
-      <section className="card p-5 mb-6" aria-labelledby="revenue-heading">
-        <div className="flex flex-wrap items-baseline justify-between gap-2 mb-4">
-          <h2 id="revenue-heading" className="font-display font-semibold">Completed revenue</h2>
-          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Money recorded on the Transactions page (prices are agreed at the office).</p>
-        </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {revenuePeriods.map(({ label, hint, value, icon: Icon }, index) => (
-            <div key={label} className="rounded-xl p-4" style={{ background: index === 3 ? 'var(--gradient-primary)' : 'var(--bg-surface-2)', color: index === 3 ? 'white' : undefined }}>
-              <p className="flex items-center gap-2 text-sm" style={{ color: index === 3 ? 'rgba(255,255,255,0.85)' : 'var(--text-muted)' }}><Icon size={15} /> {label}</p>
-              <p className="font-display text-2xl font-semibold mt-1.5 break-words">{peso(value)}</p>
-              <p className="text-xs mt-0.5" style={{ color: index === 3 ? 'rgba(255,255,255,0.75)' : 'var(--text-faint)' }}>{hint}</p>
+          {/* 2. Revenue, all periods in one panel (2 x 2) */}
+          <section className="card p-5 flex-1" aria-labelledby="revenue-heading">
+            <div className="mb-4">
+              <h2 id="revenue-heading" className="font-display font-semibold">Completed revenue</h2>
+              <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Money recorded on the Transactions page (prices are agreed at the office).</p>
             </div>
-          ))}
+            <div className="grid grid-cols-2 gap-3">
+              {revenuePeriods.map(({ label, hint, value, icon: Icon }, index) => (
+                <div key={label} className="rounded-xl p-4" style={{ background: index === 3 ? 'var(--gradient-primary)' : 'var(--bg-surface-2)', color: index === 3 ? 'white' : undefined }}>
+                  <p className="flex items-center gap-2 text-sm" style={{ color: index === 3 ? 'rgba(255,255,255,0.85)' : 'var(--text-muted)' }}><Icon size={15} /> {label}</p>
+                  <p className="font-display text-2xl font-semibold mt-1.5 break-words">{peso(value)}</p>
+                  <p className="text-xs mt-0.5" style={{ color: index === 3 ? 'rgba(255,255,255,0.75)' : 'var(--text-faint)' }}>{hint}</p>
+                </div>
+              ))}
+            </div>
+          </section>
         </div>
-      </section>
 
-      {/* 3. Returns due in the middle, highlighted: who to call before a car comes back. */}
-      <ReturnsDueCard className="mb-6" style={{ borderColor: 'var(--warning)', borderWidth: 2 }} />
+        {/* 3. Returns due on the right, highlighted, as tall as the left side: who to call before a car comes back. */}
+        <ReturnsDueCard className="h-full min-w-0" style={{ borderColor: 'var(--warning)', borderWidth: 2 }} />
+      </div>
 
       {/* Fleet calendar: which car is free, pending or rented on each day (live). */}
       <FleetCalendar />
