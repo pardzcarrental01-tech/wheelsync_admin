@@ -1,19 +1,60 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { Info } from 'lucide-react'
 
 // A dashboard number. With `options` ([{ key, label, value, hint }]) it shows small toggle buttons
 // (e.g. Today / Week / Month / Total) and the value of the selected one; `defaultOption` picks the first shown.
+// A `hint` (description) is not printed under the number: it opens from the small "i" button in the
+// top-right corner, so the card stays clean. It closes with another click, a click outside, or Esc.
 export default function StatCard({ label, value, icon: Icon, options, defaultOption, hint }) {
   const [chosen, setChosen] = useState(null)
+  const [showInfo, setShowInfo] = useState(false)
+  const infoRef = useRef(null)
   // Until the admin picks one, follow the default (the options may arrive after the first render).
   const selected = chosen ?? defaultOption ?? options?.[0]?.key
   const current = options?.find((option) => option.key === selected)
+  const description = current?.hint ?? hint
+
+  useEffect(() => {
+    if (!showInfo) return undefined
+    const close = (event) => {
+      if (event.type === 'keydown' ? event.key === 'Escape' : !infoRef.current?.contains(event.target)) setShowInfo(false)
+    }
+    document.addEventListener('mousedown', close)
+    document.addEventListener('keydown', close)
+    return () => {
+      document.removeEventListener('mousedown', close)
+      document.removeEventListener('keydown', close)
+    }
+  }, [showInfo])
 
   return (
-    <div className="card p-5 flex items-center justify-between gap-3">
+    <div className="card relative p-5 flex items-center justify-between gap-3">
+      {description && (
+        <div ref={infoRef} className="absolute right-2.5 top-2.5 z-10">
+          <button
+            type="button"
+            onClick={() => setShowInfo((open) => !open)}
+            aria-label={`About ${label}`}
+            aria-expanded={showInfo}
+            className="flex h-6 w-6 items-center justify-center rounded-full transition-colors"
+            style={{ color: showInfo ? 'var(--nebula-3)' : 'var(--text-muted)', background: showInfo ? 'var(--bg-surface-2)' : 'transparent' }}
+          >
+            <Info size={15} />
+          </button>
+          {showInfo && (
+            <div
+              role="tooltip"
+              className="absolute right-0 top-7 w-56 rounded-xl px-3 py-2 text-xs leading-relaxed shadow-xl"
+              style={{ background: 'var(--bg-surface-2)', border: '1px solid var(--border-soft)', color: 'var(--text-primary)' }}
+            >
+              {description}
+            </div>
+          )}
+        </div>
+      )}
       <div className="min-w-0">
         <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{label}</p>
         <p className="text-3xl font-display font-semibold mt-1">{current ? current.value : value}</p>
-        {(current?.hint ?? hint) && <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{current?.hint ?? hint}</p>}
         {options && (
           <div className="mt-3 inline-flex rounded-lg p-0.5" style={{ border: '1px solid var(--border-soft)' }} role="group" aria-label={`${label} period`}>
             {options.map((option) => {
