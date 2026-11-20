@@ -8,6 +8,7 @@ import { PageHeader, FilterBar, Tabs } from '../components/PageParts'
 import SearchBar from '../components/SearchBar'
 import { matchesSearch } from '../lib/search'
 import ChurnExplainer from '../components/ChurnExplainer'
+import BlacklistForm from '../components/BlacklistForm'
 import FilePreview from '../components/FilePreview'
 import { printCustomerDocuments } from '../lib/print'
 
@@ -58,6 +59,8 @@ export default function Customers() {
   const [search, setSearch] = useState('')
   const [showChurnInfo, setShowChurnInfo] = useState(false)
   const [page, setPage] = useState(1) // NEW: current page number
+
+  const [blacklisting, setBlacklisting] = useState(null) // customer whose blacklist form is open
 
   async function load({ silent = false } = {}) {
     if (!silent) setLoading(true)
@@ -114,9 +117,16 @@ export default function Customers() {
     load()
   }
 
-  async function toggleBlacklist(id, current) {
+  // Blacklist: opens the blacklist form already filled in from the customer's account.
+  // Remove from blacklist: unblocks the account straight away (after a confirmation).
+  async function toggleBlacklist(customer) {
+    if (!customer.is_blacklisted) {
+      setBlacklisting(customer)
+      return
+    }
+    if (!window.confirm(`Remove ${customer.full_name} from the blacklist? The account can sign in again.`)) return
     try {
-      await api.patch(`/admin/customers/${id}/blacklist`, { is_blacklisted: !current })
+      await api.patch(`/admin/customers/${customer.id}/blacklist`, { is_blacklisted: false })
     } catch (error) {
       console.error('Unable to update blacklist:', error.message)
     }
@@ -189,6 +199,13 @@ export default function Customers() {
 
   return (
     <Layout>
+      {blacklisting && (
+        <BlacklistForm
+          customer={blacklisting}
+          onClose={() => setBlacklisting(null)}
+          onSaved={() => { setBlacklisting(null); load() }}
+        />
+      )}
       <PageHeader
         title="Customers"
         description="Customer history, requirements review, and churn-risk signals calculated from completed rentals."
@@ -276,7 +293,7 @@ export default function Customers() {
                     )}
                   </td>
                   <td className="py-3 px-5 text-right whitespace-nowrap">
-                    <button onClick={() => toggleBlacklist(c.id, c.is_blacklisted)} className="btn-ghost px-3 py-1.5 text-xs">
+                    <button onClick={() => toggleBlacklist(c)} className="btn-ghost px-3 py-1.5 text-xs">
                       {c.is_blacklisted ? 'Remove from blacklist' : 'Blacklist'}
                     </button>
                     <button onClick={() => deleteCustomer(c)} className="btn-ghost ml-2 px-3 py-1.5 text-xs" style={{ color: 'var(--danger)' }}>
