@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Info, Printer } from 'lucide-react'
+import { rowClickProps } from '../lib/rowClick'
 import { api } from '../lib/api'
 import { subscribe } from '../lib/realtime'
 import Layout from '../components/Layout'
@@ -240,8 +241,8 @@ export default function Customers() {
             <tbody>
               {/* CHANGED: shows only the current page */}
               {pagedCustomers.map((c) => (
-                <tr key={c.id} style={{ borderTop: '1px solid var(--border-soft)' }}>
-                  <td className="py-3 px-5"><button onClick={() => openCustomer(c)} className="font-medium hover:underline" style={{ color: 'var(--nebula-3)' }}>{c.full_name}</button></td>
+                <tr key={c.id} {...rowClickProps(() => openCustomer(c), `Open ${c.full_name}`)} style={{ borderTop: '1px solid var(--border-soft)' }}>
+                  <td className="py-3 px-5 font-medium" style={{ color: 'var(--nebula-3)' }}>{c.full_name}</td>
                   <td className="py-3 px-5">{c.email}</td>
                   <td className="py-3 px-5">{c.phone || '—'}</td>
                   <td className="py-3 px-5">
