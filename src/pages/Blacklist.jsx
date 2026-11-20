@@ -4,16 +4,11 @@ import { Pencil, Plus, Trash2, UserRoundCheck } from 'lucide-react'
 import { api } from '../lib/api'
 import Layout from '../components/Layout'
 import { PageHeader, FilterBar } from '../components/PageParts'
-import Modal from '../components/Modal'
+import BlacklistForm, { AREAS, REASONS, SOURCES } from '../components/BlacklistForm'
 import SearchBar from '../components/SearchBar'
 import { matchesSearch } from '../lib/search'
 
 const PAGE_SIZE = 20 // rows shown per page
-
-const AREAS = { CDO: 'Cagayan de Oro', CEB: 'Cebu', DVO: 'Davao' }
-const SOURCES = { RN: 'RN (as written on the list)', FB: 'Facebook' }
-const REASONS = ['Bad Renter', 'Payment Issue', 'Scammer', 'Rent Sangla', 'Rent Tangay', 'Sub-Lease', 'Identity Theft', 'Drug Related']
-const EMPTY_RECORD = { full_name: '', id_number: '', area: 'CDO', source: 'RN', reason: 'Bad Renter', notes: '' }
 
 const ACCOUNT_BLOCKED = 'Account blocked' // reason shown for customer accounts blocked in WheelSync
 const NEW_FOR_DAYS = 7 // a record the admin added is highlighted as newly added for this many days
@@ -55,9 +50,6 @@ export default function Blacklist() {
   const [search, setSearch] = useState('')
   const [reasonFilter, setReasonFilter] = useState('')
   const [editing, setEditing] = useState(null) // null = closed, {} = adding, record = editing
-  const [form, setForm] = useState(EMPTY_RECORD)
-  const [error, setError] = useState('')
-  const [busy, setBusy] = useState(false)
   const [page, setPage] = useState(1)
   const [sharedGroups, setSharedGroups] = useState([]) // accounts that share an ID number
   const [customerNames, setCustomerNames] = useState({})
@@ -98,25 +90,6 @@ export default function Blacklist() {
 
   function openForm(record = null) {
     setEditing(record || {})
-    setForm(record ? { full_name: record.full_name, id_number: record.id_number || '', area: record.area || '', source: record.source || '', reason: record.reason, notes: record.notes || '' } : EMPTY_RECORD)
-    setError('')
-  }
-
-  async function saveRecord(e) {
-    e.preventDefault()
-    setBusy(true)
-    setError('')
-    try {
-      if (editing.id) await api.patch(`/admin/blacklist-records/${editing.id}`, form)
-      else await api.post('/admin/blacklist-records', form)
-    } catch (saveError) {
-      setBusy(false)
-      setError(saveError.message)
-      return
-    }
-    setBusy(false)
-    setEditing(null)
-    load()
   }
 
   async function deleteRecord(record) {
@@ -140,7 +113,18 @@ export default function Blacklist() {
   }, new Map())
   const sharedTimes = new Set([...timeCounts].filter(([, count]) => count > 1).map(([second]) => second))
 
-  const accountRows = customers.map((customer) => ({
+  // A blocked account whose ID number is also on a record (e.g. blacklisted from the Customers page) is one
+  // person: it is shown once, on its record, with an Unblock button for the account.
+  const bareId = (value) => String(value || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase()
+  const accountByRecord = new Map()
+  const unmatchedAccounts = customers.filter((customer) => {
+    const ids = [customer.id_number, customer.second_id_number].map(bareId).filter(Boolean)
+    const record = records.find((item) => item.id_number && ids.includes(bareId(item.id_number)))
+    if (record) accountByRecord.set(record.id, customer)
+    return !record
+  })
+
+  const accountRows = unmatchedAccounts.map((customer) => ({
     key: `account-${customer.id}`,
     kind: 'account',
     isNew: true,
@@ -155,7 +139,7 @@ export default function Blacklist() {
   const recordRows = records.map((record) => ({
     key: `record-${record.id}`,
     kind: 'record',
-    isNew: addedByAdmin(record, sharedTimes) && isRecent(record.created_at),
+    isNew: accountByRecord.has(record.id) || (addedByAdmin(record, sharedTimes) && isRecent(record.created_at)),
     name: record.full_name,
     detail: record.notes || '',
     idNumbers: record.id_number ? [record.id_number] : [],
@@ -164,6 +148,7 @@ export default function Blacklist() {
     reason: record.reason,
     createdAt: record.created_at,
     record,
+    customer: accountByRecord.get(record.id) || null,
   }))
   const newestFirst = (a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || ''))
   const rows = [
@@ -175,7 +160,7 @@ export default function Blacklist() {
   const visibleRows = rows
     .filter((row) => !reasonFilter || row.reason === reasonFilter)
     .filter((row) => matchesSearch(
-      search, row.name, row.detail, ...row.idNumbers, row.reason, row.area, AREAS[row.area], row.source, SOURCES[row.source],
+      search, row.name, row.detail, row.customer?.email, row.customer?.phone, ...row.idNumbers, row.reason, row.area, AREAS[row.area], row.source, SOURCES[row.source],
       row.kind === 'account' ? 'WheelSync account' : '', row.isNew ? 'new newly added' : '',
     ))
   const newCount = rows.filter((row) => row.isNew).length
@@ -197,42 +182,12 @@ export default function Blacklist() {
       />
 
       {editing && (
-        <Modal
-          title={editing.id ? `Edit · ${editing.full_name}` : 'Add to blacklist'}
-          description="A customer with this ID number cannot book. A customer with a matching name is flagged for review."
-          onClose={() => { if (!busy) setEditing(null) }}
-          size="max-w-lg"
-        >
-          <form onSubmit={saveRecord} className="flex flex-col gap-3">
-            {error && <p role="alert" className="text-sm" style={{ color: 'var(--danger)' }}>{error}</p>}
-            <label className="flex flex-col gap-1 text-sm">Full name<input required autoFocus className="px-3 py-2" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} /></label>
-            <label className="flex flex-col gap-1 text-sm">ID number<input required={!editing.id || Boolean(editing.id_number)} maxLength={100} className="px-3 py-2" placeholder="Driver's license, passport or other ID number" value={form.id_number} onChange={(e) => setForm({ ...form, id_number: e.target.value })} /></label>
-            <div className="grid grid-cols-2 gap-3">
-              <label className="flex flex-col gap-1 text-sm">Area
-                <select className="px-3 py-2" value={form.area} onChange={(e) => setForm({ ...form, area: e.target.value })}>
-                  <option value="">—</option>
-                  {Object.entries(AREAS).map(([code, name]) => <option key={code} value={code}>{code} · {name}</option>)}
-                </select>
-              </label>
-              <label className="flex flex-col gap-1 text-sm">Source
-                <select className="px-3 py-2" value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })}>
-                  <option value="">—</option>
-                  {Object.keys(SOURCES).map((code) => <option key={code} value={code}>{code}</option>)}
-                </select>
-              </label>
-            </div>
-            <label className="flex flex-col gap-1 text-sm">Reason
-              <select className="px-3 py-2" value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })}>
-                {reasons.map((reason) => <option key={reason}>{reason}</option>)}
-              </select>
-            </label>
-            <label className="flex flex-col gap-1 text-sm">Notes (optional)<textarea rows={3} className="px-3 py-2" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></label>
-            <div className="modal-actions flex justify-end gap-2">
-              <button type="button" onClick={() => setEditing(null)} disabled={busy} className="btn-ghost px-4 py-2 text-sm">Cancel</button>
-              <button type="submit" disabled={busy} className="btn-primary px-5 py-2 text-sm">{busy ? 'Saving…' : editing.id ? 'Save changes' : 'Add to list'}</button>
-            </div>
-          </form>
-        </Modal>
+        <BlacklistForm
+          record={editing.id ? editing : null}
+          reasons={reasons}
+          onClose={() => setEditing(null)}
+          onSaved={() => { setEditing(null); load() }}
+        />
       )}
 
       <FilterBar>
@@ -288,20 +243,23 @@ export default function Blacklist() {
                       <span className="flex flex-wrap items-center gap-2">
                         {row.name}
                         {row.isNew && <span className="badge-new">Newly added</span>}
+                        {row.kind === 'record' && row.customer && <span className="badge badge-rejected">Account blocked</span>}
                       </span>
+                      {row.kind === 'record' && row.customer && <span className="block text-xs font-normal" style={{ color: 'var(--text-muted)' }}>{[row.customer.email, row.customer.phone].filter(Boolean).join(' · ')}</span>}
                       {row.detail && <span className="block text-xs font-normal" style={{ color: 'var(--text-muted)' }}>{row.detail}</span>}
                     </td>
                     <td className="py-3 px-5 whitespace-nowrap">
                       {row.idNumbers.length ? row.idNumbers.map((number) => <span key={number} className="block">{number}</span>) : '—'}
                     </td>
                     <td className="py-3 px-5" title={AREAS[row.area]}>{row.area || '—'}</td>
-                    <td className="py-3 px-5" title={SOURCES[row.source]}>{row.kind === 'account' ? 'WheelSync account' : row.source || '—'}</td>
+                    <td className="py-3 px-5" title={SOURCES[row.source]}>{row.kind === 'account' || row.source === 'WS' ? 'WheelSync account' : row.source || '—'}</td>
                     <td className="py-3 px-5"><span className="badge badge-rejected">{row.reason}</span></td>
                     <td className="py-3 px-5 text-right whitespace-nowrap">
                       {row.kind === 'account' ? (
                         <button onClick={() => removeFromBlacklist(row.customer)} className="btn-ghost inline-flex items-center gap-1.5 px-3 py-1.5 text-xs"><UserRoundCheck size={13} /> Unblock</button>
                       ) : (
                         <>
+                          {row.customer && <button onClick={() => removeFromBlacklist(row.customer)} className="btn-ghost mr-2 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs" title="Let this account sign in again; the record stays on the list"><UserRoundCheck size={13} /> Unblock</button>}
                           <button onClick={() => openForm(row.record)} className="btn-ghost inline-flex items-center gap-1.5 px-3 py-1.5 text-xs"><Pencil size={13} /> Edit</button>
                           <button onClick={() => deleteRecord(row.record)} className="btn-ghost ml-2 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs" style={{ color: 'var(--danger)' }}><Trash2 size={13} /> Remove</button>
                         </>
