@@ -8,6 +8,7 @@ import { PageHeader, FilterBar, Tabs } from '../components/PageParts'
 import Badge from '../components/Badge'
 import EditBookingModal from '../components/EditBookingModal'
 import Modal from '../components/Modal'
+import { time12 } from '../lib/time'
 
 const FILTERS = ['all', 'pending', 'accepted', 'ongoing', 'completed', 'rejected', 'cancelled']
 const INSPECTION_STEPS = [['pre_rental', 'Pre-rental'], ['post_rental', 'Post-rental']]
@@ -269,8 +270,8 @@ export default function Bookings() {
                     )}
                   </td>
                   <td className="py-3 px-4 align-top whitespace-nowrap">
-                    <p>{booking.start_date} · {booking.pickup_time?.slice(0, 5) || '—'}</p>
-                    <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>to {booking.end_date} · {booking.return_time?.slice(0, 5) || '—'}</p>
+                    <p>{booking.start_date} · {time12(booking.pickup_time, '—')}</p>
+                    <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>to {booking.end_date} · {time12(booking.return_time, '—')}</p>
                   </td>
                   <td className="py-3 px-4 align-top">
                     <p className="capitalize">{String(booking.service_type || 'self_drive').replaceAll('_', ' ')}</p>
@@ -422,7 +423,17 @@ export default function Bookings() {
                     : 'Not provided'}
                 </p>
                 <p className="mt-1 text-sm">Verification: <span style={{ color: match.verification_status === 'verified' ? 'var(--success)' : 'var(--warning)' }}>{match.verification_status || 'unsubmitted'}</span></p>
-                <p className="mt-1 text-sm">Matching ID: <span className="font-mono">{match.matching_numbers?.join(', ') || 'Number unavailable'}</span></p>
+                {(match.matching_ids?.length ? match.matching_ids : (match.matching_numbers || []).map((number) => ({ number }))).map((id) => (
+                  <div key={id.number} className="mt-1 text-sm">
+                    <p>Matching ID: <span className="font-semibold">{id.id_type || 'ID type unavailable'}</span> · <span className="font-mono">{id.number}</span></p>
+                    {id.this_id_type && id.other_id_type && id.this_id_type !== id.other_id_type && (
+                      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                        Saved as {id.this_id_type} on {sharedIdFor.customer?.full_name || 'this account'} and {id.other_id_type} on {match.full_name}.
+                      </p>
+                    )}
+                  </div>
+                ))}
+                {!match.matching_numbers?.length && !match.matching_ids?.length && <p className="mt-1 text-sm">Matching ID: Number unavailable</p>}
                 {match.is_blacklisted && <p className="mt-2 text-sm font-semibold" style={{ color: 'var(--danger)' }}>This account is blacklisted.</p>}
               </section>
             ))}
