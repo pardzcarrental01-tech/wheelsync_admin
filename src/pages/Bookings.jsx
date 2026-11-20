@@ -39,6 +39,7 @@ export default function Bookings() {
   const [sharedIds, setSharedIds] = useState({}) // customer id -> other customer accounts with the same ID number
   const [sharedIdFor, setSharedIdFor] = useState(null)
   const [customerCardFor, setCustomerCardFor] = useState(null) // customer details card
+  const [cancellingId, setCancellingId] = useState('') // only the booking being cancelled
 
   async function load({ silent = false } = {}) {
     if (!silent) setLoading(true)
@@ -92,7 +93,7 @@ export default function Bookings() {
 
   async function cancelBooking(booking) {
     if (!window.confirm(`Cancel the booking of ${booking.profiles?.full_name} for ${booking.vehicles?.make} ${booking.vehicles?.model}? The customer and the assigned staff will be notified, and the dates will be free again.`)) return
-    setBusyBooking(booking.id)
+    setCancellingId(booking.id)
     setActionError('')
     setActionMessage('')
     try {
@@ -104,7 +105,7 @@ export default function Bookings() {
       setActionError(error.message)
     }
     await load({ silent: true })
-    setBusyBooking('')
+    setCancellingId('')
   }
 
   // mode: 'view' opens the agreement in a new tab, 'print' opens it with the print dialog.
@@ -347,12 +348,12 @@ export default function Bookings() {
                       <button
                         type="button"
                         onClick={() => cancelBooking(booking)}
-                        disabled={busyBooking === booking.id}
+                        disabled={cancellingId === booking.id}
                         title="Cancel this booking. The dates become free again."
                         className="btn-ghost mt-1.5 flex w-full items-center justify-center gap-1.5 px-2 py-2 text-xs"
                         style={{ color: 'var(--danger)' }}
                       >
-                        <Ban size={14} /> {busyBooking === booking.id ? 'Cancelling…' : 'Cancel booking'}
+                        <Ban size={14} /> {cancellingId === booking.id ? 'Cancelling…' : 'Cancel booking'}
                       </button>
                     )}
                     {(booking.status === 'accepted' || booking.status === 'ongoing') && reassignFor === booking.id && (
@@ -381,26 +382,26 @@ export default function Bookings() {
         />
       )}
       {customerCardFor && (
-        <Modal title={customerCardFor.full_name || 'Customer'} onClose={() => setCustomerCardFor(null)} size="max-w-lg">
-          <div className="flex flex-col gap-3 pb-5 text-sm">
-            <dl className="grid grid-cols-2 gap-3">
-              <div><dt className="text-xs" style={{ color: 'var(--text-muted)' }}>Email</dt><dd>{customerCardFor.email || 'Not provided'}</dd></div>
-              <div><dt className="text-xs" style={{ color: 'var(--text-muted)' }}>Phone</dt><dd>{customerCardFor.phone || 'Not provided'}</dd></div>
-              <div><dt className="text-xs" style={{ color: 'var(--text-muted)' }}>Age</dt><dd>{customerCardFor.age ?? 'Not provided'}</dd></div>
-              <div><dt className="text-xs" style={{ color: 'var(--text-muted)' }}>Verification</dt><dd>{customerCardFor.verification_status || 'unsubmitted'}</dd></div>
-              <div className="col-span-2"><dt className="text-xs" style={{ color: 'var(--text-muted)' }}>Address</dt><dd>{customerCardFor.address || 'Not provided'}</dd></div>
-              <div className="col-span-2"><dt className="text-xs" style={{ color: 'var(--text-muted)' }}>Primary ID</dt><dd>{customerCardFor.id_type || 'Not provided'} · {customerCardFor.id_number || 'No number'}</dd></div>
-              <div className="col-span-2"><dt className="text-xs" style={{ color: 'var(--text-muted)' }}>Second ID</dt><dd>{customerCardFor.second_id_type || 'Not provided'} · {customerCardFor.second_id_number || 'No number'}</dd></div>
-            </dl>
-            {(sharedIds[customerCardFor.id]?.shares_with || []).length > 0 && (
-              <div className="card p-3">
-                <p className="font-medium mb-1" style={{ color: 'var(--warning)' }}>Same ID number as another account</p>
-                {sharedIds[customerCardFor.id].shares_with.map((other) => (
-                  <p key={other.customer_id} className="text-sm">{other.full_name} · {other.email || 'No email'} · {other.phone || 'No phone'} · {other.matching_numbers.join(', ')}</p>
-                ))}
-              </div>
-            )}
+        <Modal title={customerCardFor.full_name || 'Customer'} description="Customer information" onClose={() => setCustomerCardFor(null)} size="max-w-3xl">
+          <div className="grid sm:grid-cols-3 gap-3 pb-5">
+            <div className="card p-3"><p className="text-xs" style={{ color: 'var(--text-muted)' }}>Full name</p><p className="font-medium mt-1">{customerCardFor.full_name}</p></div>
+            <div className="card p-3"><p className="text-xs" style={{ color: 'var(--text-muted)' }}>Phone number</p><p className="font-medium mt-1">{customerCardFor.phone || 'Not provided'}</p></div>
+            <div className="card p-3"><p className="text-xs" style={{ color: 'var(--text-muted)' }}>Age</p><p className="font-medium mt-1">{customerCardFor.age ?? 'Not provided'}</p></div>
+            <div className="card p-3"><p className="text-xs" style={{ color: 'var(--text-muted)' }}>Email</p><p className="font-medium mt-1 break-all">{customerCardFor.email || 'Not provided'}</p></div>
+            <div className="card p-3"><p className="text-xs" style={{ color: 'var(--text-muted)' }}>Address</p><p className="font-medium mt-1">{customerCardFor.address || 'Not provided'}</p></div>
+            <div className="card p-3"><p className="text-xs" style={{ color: 'var(--text-muted)' }}>Verification status</p><span className={`badge mt-2 ${customerCardFor.verification_status === 'verified' ? 'badge-accepted' : customerCardFor.verification_status === 'rejected' ? 'badge-rejected' : 'badge-pending'}`}>{customerCardFor.verification_status || 'unsubmitted'}</span></div>
+            <div className="card p-3"><p className="text-xs" style={{ color: 'var(--text-muted)' }}>Primary ID</p><p className="font-medium mt-1">{customerCardFor.id_type || 'Not provided'}</p><p className="text-sm">{customerCardFor.id_number || 'No number'}</p></div>
+            <div className="card p-3"><p className="text-xs" style={{ color: 'var(--text-muted)' }}>Second ID</p><p className="font-medium mt-1">{customerCardFor.second_id_type || 'Not provided'}</p><p className="text-sm">{customerCardFor.second_id_number || 'No number'}</p></div>
+            {customerCardFor.is_blacklisted && <div className="card p-3"><p className="text-xs" style={{ color: 'var(--text-muted)' }}>Status</p><span className="badge badge-rejected mt-2">Blacklisted</span></div>}
           </div>
+          {(sharedIds[customerCardFor.id]?.shares_with || []).length > 0 && (
+            <div className="card p-3 mb-5">
+              <p className="font-medium mb-2" style={{ color: 'var(--warning)' }}>Same ID number as another account</p>
+              {sharedIds[customerCardFor.id].shares_with.map((other) => (
+                <p key={other.customer_id} className="text-sm">{other.full_name} · {other.email || 'No email'} · {other.phone || 'No phone'} · {other.matching_numbers.join(', ')}</p>
+              ))}
+            </div>
+          )}
         </Modal>
       )}
       {sharedIdFor && (
