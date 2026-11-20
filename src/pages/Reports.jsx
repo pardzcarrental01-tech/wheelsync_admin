@@ -6,6 +6,7 @@ import Layout from '../components/Layout'
 import { PageHeader } from '../components/PageParts'
 import SearchBar from '../components/SearchBar'
 import { matchesSearch } from '../lib/search'
+import { time12 } from '../lib/time'
 
 const company = {
   name: 'Pardz Car Rental',
@@ -42,7 +43,7 @@ export default function Reports() {
 
   function exportCsv(branded = false) {
     const header = ['Booking ID', 'Customer', 'Vehicle', 'Plate', 'Start date', 'Pickup time', 'End date', 'Return time', 'Service', 'Status', 'Late return']
-    const data = rows.map((row) => [row.id, row.profiles?.full_name, `${row.vehicles?.make} ${row.vehicles?.model}`, row.vehicles?.plate_number, row.start_date, row.pickup_time, row.end_date, row.return_time, row.service_type, row.status, row.late_return ? 'Yes' : 'No'])
+    const data = rows.map((row) => [row.id, row.profiles?.full_name, `${row.vehicles?.make} ${row.vehicles?.model}`, row.vehicles?.plate_number, row.start_date, time12(row.pickup_time), row.end_date, time12(row.return_time), row.service_type, row.status, row.late_return ? 'Yes' : 'No'])
     const reportRange = `${from || 'All dates'} to ${to || 'Present'}`
     const contentRows = branded
       ? [[company.name], [company.phone, company.email, company.address], [`Facebook: ${facebookPage || company.name}`], ['Rental transaction report'], [`Period: ${reportRange}`], [`Generated: ${new Date().toLocaleString()}`], [], header, ...data]
@@ -101,7 +102,7 @@ export default function Reports() {
       </div>
       <div className="card overflow-x-auto">
         <table className="w-full text-sm"><thead><tr className="text-left" style={{ color: 'var(--text-muted)' }}><th className="py-3 px-4">Customer</th><th className="py-3 px-4">Vehicle</th><th className="py-3 px-4">Dates & times</th><th className="py-3 px-4">Status</th><th className="py-3 px-4">Late</th></tr></thead>
-          <tbody>{visibleRows.map((row) => <tr key={row.id} style={{ borderTop: '1px solid var(--border-soft)' }}><td className="py-3 px-4">{row.profiles?.full_name}</td><td className="py-3 px-4">{row.vehicles?.make} {row.vehicles?.model} ({row.vehicles?.plate_number})</td><td className="py-3 px-4">{row.start_date} {row.pickup_time?.slice(0, 5) || ''} → {row.end_date} {row.return_time?.slice(0, 5) || ''}</td><td className="py-3 px-4 capitalize">{row.status}</td><td className="py-3 px-4">{row.late_return ? 'Yes' : 'No'}</td></tr>)}</tbody>
+          <tbody>{visibleRows.map((row) => <tr key={row.id} style={{ borderTop: '1px solid var(--border-soft)' }}><td className="py-3 px-4">{row.profiles?.full_name}</td><td className="py-3 px-4">{row.vehicles?.make} {row.vehicles?.model} ({row.vehicles?.plate_number})</td><td className="py-3 px-4">{row.start_date} {time12(row.pickup_time)} → {row.end_date} {time12(row.return_time)}</td><td className="py-3 px-4 capitalize">{row.status}</td><td className="py-3 px-4">{row.late_return ? 'Yes' : 'No'}</td></tr>)}</tbody>
         </table>
         {!loading && visibleRows.length === 0 && <p className="p-8 text-center" style={{ color: 'var(--text-muted)' }}>{rows.length ? 'No records match this search.' : 'No records found.'}</p>}
         {loading && <p className="p-8 text-center" style={{ color: 'var(--text-muted)' }}>Loading…</p>}
