@@ -10,6 +10,7 @@ import FleetCalendar from '../components/FleetCalendar'
 import MonthlyRentalsChart from '../components/MonthlyRentalsChart'
 import SearchBar from '../components/SearchBar'
 import { matchesSearch } from '../lib/search'
+import { time12 } from '../lib/time'
 
 export default function Dashboard() {
   const [stats, setStats] = useState({ pending: 0, vehicles: 0, customers: 0, revenue: 0 })
@@ -134,7 +135,7 @@ export default function Dashboard() {
                   <tr key={b.id} style={{ borderTop: '1px solid var(--border-soft)' }}>
                     <td className="py-2.5 pr-4">{b.profiles?.full_name ?? '—'}</td>
                     <td className="py-2.5 pr-4">{b.vehicles ? `${b.vehicles.make} ${b.vehicles.model}` : '—'}</td>
-                    <td className="py-2.5 pr-4">{b.start_date} {b.pickup_time?.slice(0, 5) || ''} → {b.end_date} {b.return_time?.slice(0, 5) || ''}</td>
+                    <td className="py-2.5 pr-4">{b.start_date} {time12(b.pickup_time)} → {b.end_date} {time12(b.return_time)}</td>
                     <td className="py-2.5 pr-4"><Badge status={b.status} /></td>
                   </tr>
                 ))}
