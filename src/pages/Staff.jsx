@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { subscribe } from '../lib/realtime'
-import { Pencil, Plus } from 'lucide-react'
+import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { api } from '../lib/api'
 import Layout from '../components/Layout'
 import { PageHeader, FilterBar } from '../components/PageParts'
@@ -19,6 +19,7 @@ export default function Staff() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [search, setSearch] = useState('')
+  const [notice, setNotice] = useState('') // shown when a removal is refused
 
   async function load() {
     try {
@@ -55,6 +56,18 @@ export default function Staff() {
     setBusy(false)
     setForm({ full_name: '', email: '', phone: '', password: '' })
     setShowForm(false)
+    load()
+  }
+
+  async function removeStaff(member) {
+    if (!window.confirm(`Remove ${member.full_name}'s staff account? They will no longer be able to sign in.`)) return
+    setNotice('')
+    try {
+      await api.delete(`/admin/staff/${member.id}`)
+    } catch (removeError) {
+      setNotice(removeError.message)
+      return
+    }
     load()
   }
 
@@ -96,6 +109,8 @@ export default function Staff() {
         <SearchBar value={search} onChange={setSearch} placeholder="Search name, email, or phone" />
       </FilterBar>
 
+      {notice && <p role="alert" className="text-sm px-4 py-3 rounded-xl mb-4" style={{ background: 'rgba(251,113,133,0.12)', color: 'var(--danger)' }}>{notice}</p>}
+
       <div className="card overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -114,7 +129,7 @@ export default function Staff() {
                 <td className="py-3 px-5">{s.email || '—'}</td>
                 <td className="py-3 px-5">{s.phone || '—'}</td>
                 <td className="py-3 px-5">{new Date(s.created_at).toLocaleDateString()}</td>
-                <td className="py-3 px-5 text-right"><button onClick={() => openForm(s)} className="btn-ghost inline-flex items-center gap-1.5 px-3 py-1.5 text-xs"><Pencil size={13} /> Edit</button></td>
+                <td className="py-3 px-5 text-right whitespace-nowrap"><button onClick={() => openForm(s)} className="btn-ghost inline-flex items-center gap-1.5 px-3 py-1.5 text-xs"><Pencil size={13} /> Edit</button><button onClick={() => removeStaff(s)} className="btn-ghost ml-2 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs" style={{ color: 'var(--danger)' }}><Trash2 size={13} /> Remove</button></td>
               </tr>
             ))}
             {visibleStaff.length === 0 && (
